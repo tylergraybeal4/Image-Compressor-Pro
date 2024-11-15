@@ -672,11 +672,14 @@
             images.forEach((image, index) => {
                 const div = document.createElement('div');
                 div.className = 'image-item';
+                div.dataset.index = index;
 
                 const reader = new FileReader();
                 reader.onload = e => {
+                    const moveButtons = generateMoveButtons(index, images.length);
+                    
                     div.innerHTML = `
-                        <input type="checkbox" class="image-select" onchange="updateDeleteButton()">
+                        <input type="checkbox" class="image-select" onchange="updateControlButtons()">
                         <div class="image-preview-section">
                             <img src="${e.target.result}" alt="${image.name}">
                             <div>${formatSize(image.file.size)}</div>
@@ -695,10 +698,9 @@
                         </div>
                         <div class="action-buttons-container">
                             <div class="move-buttons">
-                                ${index > 0 ? `<button class="move-up-btn" onclick="moveImageSmooth(${index}, 'up')">↑</button>` : ''}
-                                ${index < images.length - 1 ? `<button class="move-down-btn" onclick="moveImageSmooth(${index}, 'down')">↓</button>` : ''}
-                                <button class="delete-btn" onclick="deleteImage(${index})">×</button>
+                                ${moveButtons}
                             </div>
+                            <button class="delete-btn" onclick="deleteImage(${index}, event)">×</button>
                             <select class="format-select">
                                 <option value="image/jpeg">.jpg</option>
                                 <option value="image/png">.png</option>
@@ -765,21 +767,57 @@
             // Swap array elements
             [images[index], images[targetIndex]] = [images[targetIndex], images[index]];
 
-            // After animation
+            // After animation, update only the affected items
             setTimeout(() => {
                 // Reset transforms
                 currentItem.style.transform = '';
                 targetItem.style.transform = '';
-                currentItem.style.zIndex = '1';
-                targetItem.style.zIndex = '1';
-
-                // Update DOM
+                
+                // Update only the affected items' buttons
+                updateMoveButtons(currentItem, targetIndex);
+                updateMoveButtons(targetItem, index);
+                
+                // Swap the items in the DOM
                 if (direction === 'up') {
-                    imageList.insertBefore(currentItem, targetItem);
+                    targetItem.parentNode.insertBefore(currentItem, targetItem);
                 } else {
-                    imageList.insertBefore(targetItem, currentItem);
+                    targetItem.parentNode.insertBefore(targetItem, currentItem);
                 }
             }, 300);
+        }
+
+        function updateMoveButtons(item, newIndex) {
+            const moveButtonsContainer = item.querySelector('.move-buttons');
+            const totalItems = images.length;
+            moveButtonsContainer.innerHTML = generateMoveButtons(newIndex, totalItems);
+            
+            // Update the onclick handlers for quality slider and delete button
+            const qualitySlider = item.querySelector('.quality-slider');
+            if (qualitySlider) {
+                qualitySlider.setAttribute('oninput', `updateQualitySmooth(this, ${newIndex})`);
+            }
+            
+            const deleteBtn = item.querySelector('.delete-btn');
+            if (deleteBtn) {
+                deleteBtn.setAttribute('onclick', `deleteImage(${newIndex}, event)`);
+            }
+            
+            // Update the data-index attribute
+            item.dataset.index = newIndex;
+        }
+
+        function generateMoveButtons(index, totalItems) {
+            const buttons = [];
+            
+            if (index > 0) {
+                buttons.push(`<button class="move-up-btn" onclick="moveImageSmooth(${index}, 'up')">↑</button>`);
+            }
+            
+            if (index < totalItems - 1) {
+                buttons.push(`<button class="move-down-btn" onclick="moveImageSmooth(${index}, 'down')">↓</button>`);
+            }
+            
+            return buttons.join('');
         }
 
         function updateCompressButton() {
@@ -883,9 +921,55 @@
             });
         }
 
-        function deleteImage(index) {
-            images.splice(index, 1);
-            updateImageList();
+        function deleteImage(index, event) {
+            // Prevent event from bubbling up if it exists
+            if (event) {
+                event.stopPropagation();
+            }
+
+            const imageList = document.getElementById('imageList');
+            const items = Array.from(imageList.children);
+            const selectedItems = items.filter(item => item.querySelector('.image-select:checked'));
+
+            // If there are selected items and the clicked delete button is on one of the selected items
+            if (selectedItems.length > 0 && items[index].querySelector('.image-select:checked')) {
+                // Get all selected indices in reverse order (to avoid index shifting issues)
+                const selectedIndices = selectedItems
+                    .map(item => Array.from(imageList.children).indexOf(item))
+                    .sort((a, b) => b - a); // Sort in descending order
+
+                // Remove each selected image
+                selectedIndices.forEach(idx => {
+                    images.splice(idx, 1);
+                    items[idx].style.opacity = '0';
+                    items[idx].style.transform = 'scale(0.9)';
+                });
+
+                // Hide the move to top button immediately
+                const moveToTopBtn = document.getElementById('moveToTopBtn');
+                if (moveToTopBtn) {
+                    moveToTopBtn.style.display = 'none';
+                }
+
+                // Update the UI after a brief animation
+                setTimeout(() => {
+                    updateImageList();
+                    // Ensure all checkboxes are unchecked
+                    const checkboxes = document.querySelectorAll('.image-select');
+                    checkboxes.forEach(checkbox => checkbox.checked = false);
+                    updateControlButtons();
+                }, 300);
+            } else {
+                // Single image delete
+                images.splice(index, 1);
+                items[index].style.opacity = '0';
+                items[index].style.transform = 'scale(0.9)';
+                
+                setTimeout(() => {
+                    updateImageList();
+                    updateControlButtons();
+                }, 300);
+            }
         }
 
         function moveImage(index, direction) {
@@ -976,17 +1060,12 @@
 
         function updateControlButtons() {
             const selectedCount = document.querySelectorAll('.image-select:checked').length;
-            let moveToTopBtn = document.getElementById('moveToTopBtn');
+            const moveToTopBtn = document.getElementById('moveToTopBtn');
             
-            if (!moveToTopBtn) {
-                moveToTopBtn = document.createElement('button');
-                moveToTopBtn.id = 'moveToTopBtn';
-                moveToTopBtn.onclick = moveSelectedToTop;
-                document.querySelector('.controls').appendChild(moveToTopBtn);
+            if (moveToTopBtn) {
+                moveToTopBtn.textContent = `Move ${selectedCount} Selected to Top`;
+                moveToTopBtn.style.display = selectedCount > 0 ? 'block' : 'none';
             }
-            
-            moveToTopBtn.textContent = `Move ${selectedCount} Selected to Top`;
-            moveToTopBtn.style.display = selectedCount > 0 ? 'block' : 'none';
         }
 
         function moveSelectedToTop() {
@@ -1007,7 +1086,18 @@
             });
 
             // Mark selected items
-            selectedItems.forEach(item => item.style.zIndex = '2');
+            selectedItems.forEach(item => {
+                item.style.zIndex = '2';
+                // Uncheck the checkbox immediately
+                const checkbox = item.querySelector('.image-select');
+                if (checkbox) checkbox.checked = false;
+            });
+
+            // Hide the move to top button immediately
+            const moveToTopBtn = document.getElementById('moveToTopBtn');
+            if (moveToTopBtn) {
+                moveToTopBtn.style.display = 'none';
+            }
 
             // Calculate target positions
             let currentTop = items[0].getBoundingClientRect().top;
@@ -1017,26 +1107,21 @@
                 currentTop += pos.height;
             });
 
-            // After animation, update DOM
+            // After animation, update array and DOM
             setTimeout(() => {
-                // Reset transforms
-                selectedItems.forEach(item => {
-                    item.style.transform = '';
-                    item.style.zIndex = '1';
-                });
+                // Get indices of selected items
+                const selectedIndices = selectedItems.map(item => 
+                    Array.from(imageList.children).indexOf(item)
+                );
 
-                // Move items to top
-                selectedItems.reverse().forEach(item => {
-                    imageList.insertBefore(item, imageList.firstChild);
-                });
+                // Create new array with selected items at top
+                const newImages = [...images];
+                const selectedImages = selectedIndices.map(index => newImages[index]);
+                const unselectedImages = newImages.filter((_, index) => !selectedIndices.includes(index));
+                images = [...selectedImages, ...unselectedImages];
 
-                // Update array order
-                const newImages = [];
-                Array.from(imageList.children).forEach(item => {
-                    const index = items.indexOf(item);
-                    newImages.push(images[index]);
-                });
-                images = newImages;
+                // Update the DOM
+                updateImageList();
             }, 300);
         }
 
@@ -1129,7 +1214,18 @@
             });
 
             // Mark selected items
-            selectedItems.forEach(item => item.style.zIndex = '2');
+            selectedItems.forEach(item => {
+                item.style.zIndex = '2';
+                // Uncheck the checkbox immediately
+                const checkbox = item.querySelector('.image-select');
+                if (checkbox) checkbox.checked = false;
+            });
+
+            // Hide the move to top button immediately
+            const moveToTopBtn = document.getElementById('moveToTopBtn');
+            if (moveToTopBtn) {
+                moveToTopBtn.style.display = 'none';
+            }
 
             // Calculate target positions
             let currentTop = items[0].getBoundingClientRect().top;
@@ -1139,26 +1235,21 @@
                 currentTop += pos.height;
             });
 
-            // After animation, update DOM
+            // After animation, update array and DOM
             setTimeout(() => {
-                // Reset transforms
-                selectedItems.forEach(item => {
-                    item.style.transform = '';
-                    item.style.zIndex = '1';
-                });
+                // Get indices of selected items
+                const selectedIndices = selectedItems.map(item => 
+                    Array.from(imageList.children).indexOf(item)
+                );
 
-                // Move items to top
-                selectedItems.reverse().forEach(item => {
-                    imageList.insertBefore(item, imageList.firstChild);
-                });
+                // Create new array with selected items at top
+                const newImages = [...images];
+                const selectedImages = selectedIndices.map(index => newImages[index]);
+                const unselectedImages = newImages.filter((_, index) => !selectedIndices.includes(index));
+                images = [...selectedImages, ...unselectedImages];
 
-                // Update array order
-                const newImages = [];
-                Array.from(imageList.children).forEach(item => {
-                    const index = items.indexOf(item);
-                    newImages.push(images[index]);
-                });
-                images = newImages;
+                // Update the DOM
+                updateImageList();
             }, 300);
         }
 
@@ -1189,19 +1280,21 @@
             // Swap array elements
             [images[index], images[targetIndex]] = [images[targetIndex], images[index]];
 
-            // After animation
+            // After animation, update only the affected items
             setTimeout(() => {
                 // Reset transforms
                 currentItem.style.transform = '';
                 targetItem.style.transform = '';
-                currentItem.style.zIndex = '1';
-                targetItem.style.zIndex = '1';
-
-                // Update DOM
+                
+                // Update only the affected items' buttons
+                updateMoveButtons(currentItem, targetIndex);
+                updateMoveButtons(targetItem, index);
+                
+                // Swap the items in the DOM
                 if (direction === 'up') {
-                    imageList.insertBefore(currentItem, targetItem);
+                    targetItem.parentNode.insertBefore(currentItem, targetItem);
                 } else {
-                    imageList.insertBefore(targetItem, currentItem);
+                    targetItem.parentNode.insertBefore(targetItem, currentItem);
                 }
             }, 300);
         }
