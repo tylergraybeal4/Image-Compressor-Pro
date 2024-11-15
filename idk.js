@@ -298,6 +298,21 @@
             margin-right: 10px;
             transform: scale(1.2);
         }
+
+        #moveToTopBtn {
+            background: var(--accent);
+            display: none;
+            margin-left: auto;
+        }
+
+        #moveToTopBtn:hover {
+            background: var(--accent-hover);
+        }
+
+        .image-item {
+            transition: transform 0.3s ease-in-out;
+            will-change: transform;
+        }
     </style>
 </head>
 <body>
@@ -320,6 +335,7 @@
                     <option value="image/png">.png</option>
                     <option value="image/webp">.webp</option>
                 </select>
+                <button id="moveToTopBtn">Move Selected to Top</button>
             </div>
         </div>
 
@@ -464,89 +480,47 @@
         }
 
         function moveImageSmooth(index, direction) {
-            const items = document.querySelectorAll('.image-item');
-            const selectedIndices = Array.from(items)
-                .map((item, idx) => item.querySelector('.image-select').checked ? idx : null)
-                .filter(idx => idx !== null);
+            const imageList = document.getElementById('imageList');
+            const items = Array.from(imageList.children);
+            const currentItem = items[index];
+            const targetIndex = direction === 'up' ? index - 1 : index + 1;
+            
+            if (targetIndex < 0 || targetIndex >= items.length) return;
+            
+            const targetItem = items[targetIndex];
+            const itemHeight = currentItem.offsetHeight;
 
-            // If there are selected images and the clicked image isn't selected,
-            // move only the clicked image
-            if (selectedIndices.length > 0 && !selectedIndices.includes(index)) {
-                selectedIndices.length = 0;
-            }
+            // Set initial states
+            currentItem.style.zIndex = '2';
+            targetItem.style.zIndex = '1';
+            
+            // Apply transitions
+            currentItem.style.transform = direction === 'up' 
+                ? `translateY(-${itemHeight}px)` 
+                : `translateY(${itemHeight}px)`;
+            
+            targetItem.style.transform = direction === 'up' 
+                ? `translateY(${itemHeight}px)` 
+                : `translateY(-${itemHeight}px)`;
 
-            // If no images are selected, move only the clicked image
-            const indicesToMove = selectedIndices.length > 0 ? selectedIndices : [index];
+            // Swap array elements
+            [images[index], images[targetIndex]] = [images[targetIndex], images[index]];
 
-            // Validate movement is possible
-            if (direction === 'up' && Math.min(...indicesToMove) <= 0) return;
-            if (direction === 'down' && Math.max(...indicesToMove) >= images.length - 1) return;
-
-            // Calculate target indices
-            const targetIndices = indicesToMove.map(idx => direction === 'up' ? idx - 1 : idx + 1);
-
-            indicesToMove.forEach((idx, i) => {
-                const currentItem = items[idx];
-                const targetItem = items[targetIndices[i]];
-                
-                if (!currentItem || !targetItem) return;
-
-                // Get the height for accurate movement
-                const itemHeight = currentItem.offsetHeight;
-
-                // Setup initial states
-                currentItem.style.position = 'relative';
-                targetItem.style.position = 'relative';
-                currentItem.style.zIndex = '2';
+            // After animation
+            setTimeout(() => {
+                // Reset transforms
+                currentItem.style.transform = '';
+                targetItem.style.transform = '';
+                currentItem.style.zIndex = '1';
                 targetItem.style.zIndex = '1';
-                currentItem.style.transition = 'transform 0.3s ease-in-out';
-                targetItem.style.transition = 'transform 0.3s ease-in-out';
 
-                // Force reflow
-                void currentItem.offsetHeight;
-
-                // Perform the movement
+                // Update DOM
                 if (direction === 'up') {
-                    currentItem.style.transform = `translateY(-${itemHeight}px)`;
-                    targetItem.style.transform = `translateY(${itemHeight}px)`;
+                    imageList.insertBefore(currentItem, targetItem);
                 } else {
-                    currentItem.style.transform = `translateY(${itemHeight}px)`;
-                    targetItem.style.transform = `translateY(-${itemHeight}px)`;
+                    imageList.insertBefore(targetItem, currentItem);
                 }
-
-                // Swap array elements
-                [images[idx], images[targetIndices[i]]] = [images[targetIndices[i]], images[idx]];
-
-                // After animation completes
-                setTimeout(() => {
-                    // Reset styles
-                    currentItem.style.transition = '';
-                    targetItem.style.transition = '';
-                    currentItem.style.transform = '';
-                    targetItem.style.position = '';
-                    targetItem.style.zIndex = '';
-                    targetItem.style.transform = '';
-                    targetItem.style.position = '';
-                    targetItem.style.zIndex = '';
-
-                    // Update DOM positions
-                    if (direction === 'up') {
-                        targetItem.parentNode.insertBefore(currentItem, targetItem);
-                    } else {
-                        targetItem.parentNode.insertBefore(targetItem, currentItem);
-                    }
-
-                    // Update only the move buttons for affected items
-                    const moveButtonsHtml = (itemIndex) => `
-                        ${itemIndex > 0 ? `<button class="move-up-btn" onclick="moveImageSmooth(${itemIndex}, 'up')">↑</button>` : ''}
-                        ${itemIndex < images.length - 1 ? `<button class="move-down-btn" onclick="moveImageSmooth(${itemIndex}, 'down')">↓</button>` : ''}
-                    `;
-
-                    currentItem.querySelector('.move-buttons').innerHTML = moveButtonsHtml(targetIndices[i]);
-                    targetItem.querySelector('.move-buttons').innerHTML = moveButtonsHtml(idx);
-
-                }, 300);
-            });
+            }, 300);
         }
 
         function updateCompressButton() {
@@ -740,6 +714,275 @@
         const styleSheet = document.createElement('style');
         styleSheet.textContent = transitionStyles;
         document.head.appendChild(styleSheet);
+
+        function updateControlButtons() {
+            const selectedCount = document.querySelectorAll('.image-select:checked').length;
+            let moveToTopBtn = document.getElementById('moveToTopBtn');
+            
+            if (!moveToTopBtn) {
+                moveToTopBtn = document.createElement('button');
+                moveToTopBtn.id = 'moveToTopBtn';
+                moveToTopBtn.onclick = moveSelectedToTop;
+                document.querySelector('.controls').appendChild(moveToTopBtn);
+            }
+            
+            moveToTopBtn.textContent = `Move ${selectedCount} Selected to Top`;
+            moveToTopBtn.style.display = selectedCount > 0 ? 'block' : 'none';
+        }
+
+        function moveSelectedToTop() {
+            const imageList = document.getElementById('imageList');
+            const items = Array.from(imageList.children);
+            const selectedItems = items.filter(item => item.querySelector('.image-select:checked'));
+            
+            if (selectedItems.length === 0) return;
+
+            // Calculate positions for animation
+            const itemPositions = selectedItems.map(item => {
+                const rect = item.getBoundingClientRect();
+                return {
+                    element: item,
+                    startY: rect.top,
+                    height: rect.height
+                };
+            });
+
+            // Mark selected items
+            selectedItems.forEach(item => item.style.zIndex = '2');
+
+            // Calculate target positions
+            let currentTop = items[0].getBoundingClientRect().top;
+            itemPositions.forEach((pos, index) => {
+                const targetY = currentTop - pos.startY;
+                pos.element.style.transform = `translateY(${targetY}px)`;
+                currentTop += pos.height;
+            });
+
+            // After animation, update DOM
+            setTimeout(() => {
+                // Reset transforms
+                selectedItems.forEach(item => {
+                    item.style.transform = '';
+                    item.style.zIndex = '1';
+                });
+
+                // Move items to top
+                selectedItems.reverse().forEach(item => {
+                    imageList.insertBefore(item, imageList.firstChild);
+                });
+
+                // Update array order
+                const newImages = [];
+                Array.from(imageList.children).forEach(item => {
+                    const index = items.indexOf(item);
+                    newImages.push(images[index]);
+                });
+                images = newImages;
+            }, 300);
+        }
+
+        document.addEventListener('change', (e) => {
+            if (e.target.classList.contains('image-select')) {
+                updateControlButtons();
+            }
+        });
+
+        function moveImageGroupUp(indices) {
+            if (indices.length === 0 || Math.min(...indices) <= 0) return;
+
+            const items = document.querySelectorAll('.image-item');
+            const itemHeight = items[0].offsetHeight;
+
+            // Move all selected images up one position
+            indices.sort((a, b) => a - b).forEach(idx => {
+                const currentItem = items[idx];
+                const targetItem = items[idx - 1];
+                
+                if (!currentItem || !targetItem || indices.includes(idx - 1)) return;
+
+                currentItem.style.transition = 'transform 0.3s ease-in-out';
+                targetItem.style.transition = 'transform 0.3s ease-in-out';
+                
+                currentItem.style.transform = `translateY(-${itemHeight}px)`;
+                targetItem.style.transform = `translateY(${itemHeight}px)`;
+
+                // Swap in array
+                [images[idx], images[idx - 1]] = [images[idx - 1], images[idx]];
+            });
+
+            // After animation, update DOM
+            setTimeout(() => {
+                indices.forEach(idx => {
+                    const currentItem = items[idx];
+                    const targetItem = items[idx - 1];
+                    
+                    if (!currentItem || !targetItem || indices.includes(idx - 1)) return;
+
+                    currentItem.style.transition = '';
+                    targetItem.style.transition = '';
+                    currentItem.style.transform = '';
+                    targetItem.style.transform = '';
+
+                    targetItem.parentNode.insertBefore(currentItem, targetItem);
+                });
+                updateImageList();
+            }, 300);
+        }
+
+        // Add this button to your HTML controls section if not already present
+        // <button id="moveToTopBtn" style="display: none;">Move Selected to Top</button>
+
+        // Replace or add these functions
+        function initializeControls() {
+            const moveToTopBtn = document.getElementById('moveToTopBtn');
+            moveToTopBtn.addEventListener('click', moveSelectedToTop);
+
+            // Add checkbox change listener
+            document.addEventListener('change', (e) => {
+                if (e.target.classList.contains('image-select')) {
+                    updateMoveToTopButton();
+                }
+            });
+        }
+
+        function updateMoveToTopButton() {
+            const moveToTopBtn = document.getElementById('moveToTopBtn');
+            const selectedCount = document.querySelectorAll('.image-select:checked').length;
+            moveToTopBtn.style.display = selectedCount > 0 ? 'block' : 'none';
+            moveToTopBtn.textContent = `Move ${selectedCount} Selected to Top`;
+        }
+
+        function moveSelectedToTop() {
+            const imageList = document.getElementById('imageList');
+            const items = Array.from(imageList.children);
+            const selectedItems = items.filter(item => item.querySelector('.image-select:checked'));
+            
+            if (selectedItems.length === 0) return;
+
+            // Calculate positions for animation
+            const itemPositions = selectedItems.map(item => {
+                const rect = item.getBoundingClientRect();
+                return {
+                    element: item,
+                    startY: rect.top,
+                    height: rect.height
+                };
+            });
+
+            // Mark selected items
+            selectedItems.forEach(item => item.style.zIndex = '2');
+
+            // Calculate target positions
+            let currentTop = items[0].getBoundingClientRect().top;
+            itemPositions.forEach((pos, index) => {
+                const targetY = currentTop - pos.startY;
+                pos.element.style.transform = `translateY(${targetY}px)`;
+                currentTop += pos.height;
+            });
+
+            // After animation, update DOM
+            setTimeout(() => {
+                // Reset transforms
+                selectedItems.forEach(item => {
+                    item.style.transform = '';
+                    item.style.zIndex = '1';
+                });
+
+                // Move items to top
+                selectedItems.reverse().forEach(item => {
+                    imageList.insertBefore(item, imageList.firstChild);
+                });
+
+                // Update array order
+                const newImages = [];
+                Array.from(imageList.children).forEach(item => {
+                    const index = items.indexOf(item);
+                    newImages.push(images[index]);
+                });
+                images = newImages;
+            }, 300);
+        }
+
+        function moveImageSmooth(index, direction) {
+            const imageList = document.getElementById('imageList');
+            const items = Array.from(imageList.children);
+            const currentItem = items[index];
+            const targetIndex = direction === 'up' ? index - 1 : index + 1;
+            
+            if (targetIndex < 0 || targetIndex >= items.length) return;
+            
+            const targetItem = items[targetIndex];
+            const itemHeight = currentItem.offsetHeight;
+
+            // Set initial states
+            currentItem.style.zIndex = '2';
+            targetItem.style.zIndex = '1';
+            
+            // Apply transitions
+            currentItem.style.transform = direction === 'up' 
+                ? `translateY(-${itemHeight}px)` 
+                : `translateY(${itemHeight}px)`;
+            
+            targetItem.style.transform = direction === 'up' 
+                ? `translateY(${itemHeight}px)` 
+                : `translateY(-${itemHeight}px)`;
+
+            // Swap array elements
+            [images[index], images[targetIndex]] = [images[targetIndex], images[index]];
+
+            // After animation
+            setTimeout(() => {
+                // Reset transforms
+                currentItem.style.transform = '';
+                targetItem.style.transform = '';
+                currentItem.style.zIndex = '1';
+                targetItem.style.zIndex = '1';
+
+                // Update DOM
+                if (direction === 'up') {
+                    imageList.insertBefore(currentItem, targetItem);
+                } else {
+                    imageList.insertBefore(targetItem, currentItem);
+                }
+            }, 300);
+        }
+
+        // Add these styles to your CSS
+        const styles = `
+            .image-item {
+                transform: translateY(0);
+                transition: transform 0.3s ease-in-out;
+                will-change: transform;
+                position: relative;
+                z-index: 1;
+            }
+
+            #moveToTopBtn {
+                background: var(--accent);
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                display: none;
+                margin-left: auto;
+            }
+
+            #moveToTopBtn:hover {
+                background: var(--accent-hover);
+            }
+        `;
+
+        // Add the styles to the document
+        if (!document.getElementById('movement-styles')) {
+            const styleSheet = document.createElement('style');
+            styleSheet.id = 'movement-styles';
+            styleSheet.textContent = styles;
+            document.head.appendChild(styleSheet);
+        }
+
+        // Initialize controls when the document is ready
+        document.addEventListener('DOMContentLoaded', initializeControls);
     </script>
 </body>
 </html>
