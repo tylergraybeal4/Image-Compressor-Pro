@@ -35,13 +35,12 @@
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 2rem auto;
             padding: var(--container-padding);
-            width: 100%;
             background: var(--bg-secondary);
-            border-radius: 16px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            border-radius: 20px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
         }
 
         h1 {
@@ -52,27 +51,62 @@
             text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
-        .upload-box {
-            border: 2px dashed var(--border);
-            padding: clamp(1.5rem, 5vw, 3.5rem);
-            background: rgba(52, 152, 219, 0.05);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            text-align: center;
-            margin-bottom: 2rem;
+        .settings-panel {
+            background: var(--bg-primary);
+            padding: 1.5rem;
             border-radius: 12px;
-            cursor: pointer;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .upload-box {
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 2rem;
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            padding: 2rem;
+        }
+
+        .upload-box::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            pointer-events: none;
             transition: all 0.3s ease;
         }
 
-        .upload-box:hover {
+        .upload-box.dragover::before {
             border-color: var(--accent);
             background: rgba(52, 152, 219, 0.1);
-            transform: translateY(-2px);
         }
 
-        .upload-box.dragover {
-            border-color: var(--accent);
-            background: rgba(76, 175, 80, 0.2);
+        .upload-box p {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+        }
+
+        .image-item {
+            background: var(--bg-primary);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .image-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
         }
 
         .controls {
@@ -581,6 +615,93 @@
                 margin-left: auto;
             }
         }
+
+        /* Loading indicator */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--accent);
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 1000;
+        }
+
+        .toast {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-top: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--danger);
+        }
+
+        .image-list {
+            margin-top: 2rem;
+        }
+
+        .image-list::before {
+            content: '';
+            display: block;
+            height: 1px;
+            background: var(--border);
+            margin-bottom: 2rem;
+            opacity: 0.5;
+        }
+
+        .upload-box:hover {
+            border-color: var(--accent);
+            background: rgba(52, 152, 219, 0.05);
+        }
+
+        .upload-box.dragover {
+            border-color: var(--accent);
+            background: rgba(52, 152, 219, 0.1);
+            transform: scale(1.01);
+        }
     </style>
 </head>
 <body>
@@ -614,6 +735,12 @@
 
         <div class="image-list" id="imageList"></div>
     </div>
+
+    <div class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <div class="toast-container"></div>
 
     <script>
         let images = [];
@@ -657,19 +784,29 @@
 
         function handleFiles(e) {
             const files = [...e.target.files];
-            files.forEach(file => {
-                if (file.type.startsWith('image/')) {
-                    images.push({
-                        file,
-                        name: file.name,
-                        customName: '',
-                        compressed: false,
-                        progress: 0,
-                        quality: 0.9
-                    });
+            const validFiles = files.filter(file => {
+                if (!file.type.startsWith('image/')) {
+                    showToast(`${file.name} is not a valid image file`, 'error');
+                    return false;
                 }
+                return true;
             });
-            updateImageList();
+            
+            validFiles.forEach(file => {
+                images.push({
+                    file,
+                    name: file.name,
+                    customName: '',
+                    compressed: false,
+                    progress: 0,
+                    quality: 0.9
+                });
+            });
+            
+            if (validFiles.length > 0) {
+                showToast(`Added ${validFiles.length} image(s) successfully`);
+                updateImageList();
+            }
         }
 
         function updateImageList() {
@@ -843,76 +980,140 @@
         });
 
         compressBtn.addEventListener('click', async () => {
-            if (images.length === 0) return;
-
-            if (images.length === 1) {
-                const image = images[0];
-                const format = imageList.querySelector('.format-select').value;
-                const ext = format.split('/')[1];
-                const compressedBlob = await compressImage(image.file, format, image.quality, (progress) => {
-                    image.progress = progress;
-                    imageList.querySelector('.progress').style.width = `${progress}%`;
-                });
-                
-                const downloadLink = document.createElement('a');
-                downloadLink.href = URL.createObjectURL(compressedBlob);
-                downloadLink.download = `${image.customName || image.name.split('.')[0]}.${ext}`;
-                downloadLink.click();
+            if (images.length === 0) {
+                showToast('No images to compress', 'error');
                 return;
             }
-
-            const zip = new JSZip();
             
-            for (let i = 0; i < images.length; i++) {
-                const image = images[i];
-                const format = imageList.children[i].querySelector('.format-select').value;
-                const ext = format.split('/')[1];
+            const loadingOverlay = document.querySelector('.loading-overlay');
+            
+            try {
+                loadingOverlay.classList.add('active');
                 
-                try {
-                    const compressedBlob = await compressImage(image.file, format, image.quality, (progress) => {
-                        image.progress = progress;
-                        imageList.children[i].querySelector('.progress').style.width = `${progress}%`;
+                if (images.length === 1) {
+                    // Single image compression
+                    const image = images[0];
+                    const formatSelect = document.querySelector('.format-select');
+                    const format = formatSelect ? formatSelect.value : 'image/jpeg';
+                    const ext = format.split('/')[1];
+                    
+                    const compressedBlob = await compressImage(image.file, format, image.quality);
+                    
+                    // Force download
+                    forceDownload(compressedBlob, `${image.customName || image.name.split('.')[0]}.${ext}`);
+                    showToast('Image compressed and downloaded!');
+                    
+                } else {
+                    // Multiple images compression
+                    const zip = new JSZip();
+                    let completedCount = 0;
+                    
+                    for (const image of images) {
+                        const formatSelect = document.querySelector('.format-select');
+                        const format = formatSelect ? formatSelect.value : 'image/jpeg';
+                        const ext = format.split('/')[1];
+                        
+                        try {
+                            const compressedBlob = await compressImage(image.file, format, image.quality);
+                            const fileName = `${image.customName || image.name.split('.')[0]}.${ext}`;
+                            zip.file(fileName, compressedBlob);
+                            
+                            completedCount++;
+                            showToast(`Compressed ${completedCount} of ${images.length} images`);
+                            
+                        } catch (err) {
+                            console.error(`Failed to compress ${image.name}:`, err);
+                            showToast(`Failed to compress ${image.name}`, 'error');
+                        }
+                    }
+                    
+                    // Generate and download zip
+                    const zipBlob = await zip.generateAsync({
+                        type: 'blob',
+                        compression: 'DEFLATE',
+                        compressionOptions: { level: 6 }
                     });
                     
-                    const fileName = image.customName || `${image.name.split('.')[0]}.${ext}`;
-                    zip.file(fileName, compressedBlob);
-                    image.compressed = true;
-                } catch (err) {
-                    console.error('Compression failed:', err);
+                    // Force download zip
+                    forceDownload(zipBlob, `${zipNameInput.value || 'compressed-images'}.zip`);
+                    showToast('All images compressed and downloaded!');
                 }
+                
+            } catch (error) {
+                console.error('Compression error:', error);
+                showToast('Compression failed: ' + error.message, 'error');
+            } finally {
+                loadingOverlay.classList.remove('active');
             }
-
-            const zipBlob = await zip.generateAsync({ type: 'blob' });
-            const downloadLink = document.createElement('a');
-            downloadLink.href = URL.createObjectURL(zipBlob);
-            downloadLink.download = `${zipNameInput.value || 'compressed-images'}.zip`;
-            downloadLink.click();
         });
 
-        async function compressImage(file, format, quality, progressCallback) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
+        function forceDownload(blob, filename) {
+            // Create a link and click it
+            const link = document.createElement('a');
+            link.href = window.URL.createObjectURL(blob);
+            link.download = filename;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            
+            // Cleanup
+            setTimeout(() => {
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(link.href);
+            }, 100);
+        }
+
+        function compressImage(file, format, quality) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.src = URL.createObjectURL(file);
                 
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.src = e.target.result;
+                img.onload = () => {
+                    URL.revokeObjectURL(img.src);
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
                     
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                        
-                        ctx.drawImage(img, 0, 0, img.width, img.height);
-                        progressCallback(50);
-                        
-                        canvas.toBlob((blob) => {
-                            progressCallback(100);
-                            resolve(blob);
-                        }, format, quality);
-                    };
+                    // Calculate dimensions while maintaining aspect ratio
+                    let width = img.width;
+                    let height = img.height;
+                    const maxSize = 4096;
+                    
+                    if (width > maxSize || height > maxSize) {
+                        if (width > height) {
+                            height = Math.round((height * maxSize) / width);
+                            width = maxSize;
+                        } else {
+                            width = Math.round((width * maxSize) / height);
+                            height = maxSize;
+                        }
+                    }
+                    
+                    // Set canvas size
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    // Draw and compress
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Convert to blob
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob) {
+                                resolve(blob);
+                            } else {
+                                reject(new Error('Failed to compress image'));
+                            }
+                        },
+                        format,
+                        quality
+                    );
+                };
+                
+                img.onerror = () => {
+                    URL.revokeObjectURL(img.src);
+                    reject(new Error('Failed to load image'));
                 };
             });
         }
@@ -1345,6 +1546,80 @@
 
         // Initialize controls when the document is ready
         document.addEventListener('DOMContentLoaded', initializeControls);
+
+        // Toast notification system
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            
+            const container = document.querySelector('.toast-container');
+            container.appendChild(toast);
+            
+            // Trigger reflow
+            toast.offsetHeight;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Loading indicator
+        function showLoading() {
+            document.querySelector('.loading-overlay').classList.add('active');
+        }
+
+        function hideLoading() {
+            document.querySelector('.loading-overlay').classList.remove('active');
+        }
+
+        // Update the loading overlay styles to be more visible
+        const loadingStyles = `
+            .loading-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 9999;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.3s, visibility 0.3s;
+            }
+
+            .loading-overlay.active {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .loading-spinner {
+                width: 50px;
+                height: 50px;
+                border: 5px solid #f3f3f3;
+                border-top: 5px solid #3498db;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        `;
+
+        // Add the styles to the document
+        if (!document.getElementById('loading-styles')) {
+            const styleSheet = document.createElement('style');
+            styleSheet.id = 'loading-styles';
+            styleSheet.textContent = loadingStyles;
+            document.head.appendChild(styleSheet);
+        }
     </script>
 </body>
 </html>
