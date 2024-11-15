@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Image Compressor Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -16,6 +16,8 @@
             --danger: #e74c3c;
             --border: #2c3547;
             --success: #2ecc71;
+            --container-padding: 2.5rem;
+            --mobile-padding: 1rem;
         }
 
         * {
@@ -35,8 +37,9 @@
         .container {
             max-width: 1000px;
             margin: 2rem auto;
+            padding: var(--container-padding);
+            width: 100%;
             background: var(--bg-secondary);
-            padding: 2.5rem;
             border-radius: 16px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.2);
         }
@@ -45,13 +48,13 @@
             text-align: center;
             margin-bottom: 2rem;
             color: var(--text-primary);
-            font-size: 2.5rem;
+            font-size: clamp(1.75rem, 5vw, 2.5rem);
             text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
         .upload-box {
             border: 2px dashed var(--border);
-            padding: 3.5rem;
+            padding: clamp(1.5rem, 5vw, 3.5rem);
             background: rgba(52, 152, 219, 0.05);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             text-align: center;
@@ -74,13 +77,18 @@
 
         .controls {
             display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
             flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .controls > * {
+            flex: 1 1 auto;
+            min-width: 150px;
         }
 
         button {
-            padding: 0.75rem 1.75rem;
+            padding: 0.75rem 1rem;
             background: var(--accent);
             color: white;
             border: none;
@@ -89,6 +97,8 @@
             transition: all 0.3s ease;
             font-weight: 600;
             box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+            min-height: 44px;
+            min-width: 44px;
         }
 
         button:hover {
@@ -106,8 +116,9 @@
 
         .image-item {
             display: flex;
-            align-items: center;
-            padding: 1.25rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+            padding: 1rem;
             background: var(--bg-primary);
             margin-bottom: 1rem;
             border-radius: 8px;
@@ -118,14 +129,15 @@
         }
 
         .image-item img {
-            width: 80px;
-            height: 80px;
+            width: 60px;
+            height: 60px;
             object-fit: cover;
             border-radius: 6px;
         }
 
         .image-info {
-            flex-grow: 1;
+            flex: 1 1 200px;
+            min-width: 0;
         }
 
         .progress-bar {
@@ -151,7 +163,8 @@
             border-radius: 8px;
             color: var(--text-primary);
             transition: all 0.3s ease;
-            width: 200px;
+            width: 100%;
+            max-width: 200px;
         }
 
         input[type="text"]:focus, select:focus {
@@ -164,6 +177,8 @@
             align-items: center;
             gap: 1rem;
             margin-top: 0.5rem;
+            width: 100%;
+            padding: 0.75rem;
         }
 
         .quality-slider {
@@ -201,6 +216,8 @@
         .move-buttons button {
             padding: 0.25rem 0.5rem;
             font-size: 1rem;
+            min-width: 44px;
+            min-height: 44px;
         }
 
         .move-buttons button {
@@ -312,6 +329,118 @@
         .image-item {
             transition: transform 0.3s ease-in-out;
             will-change: transform;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .container {
+                margin: 1rem auto;
+                padding: var(--mobile-padding);
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .controls > * {
+                width: 100%;
+                max-width: none;
+            }
+
+            input[type="text"], 
+            select {
+                max-width: none;
+            }
+
+            .image-item {
+                align-items: flex-start;
+            }
+
+            .image-select {
+                transform: scale(1.5);
+                margin-right: 1rem;
+            }
+
+            .move-buttons {
+                display: flex;
+                flex-direction: row;
+                gap: 0.5rem;
+                width: 100%;
+                justify-content: flex-end;
+                margin-top: 0.5rem;
+            }
+
+            .quality-control {
+                margin-top: 1rem;
+            }
+
+            #moveToTopBtn {
+                width: 100%;
+                margin: 0;
+            }
+
+            .zip-name-container {
+                width: 100%;
+            }
+
+            .zip-name-container input {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 0.75rem;
+            }
+
+            .image-item {
+                padding: 0.75rem;
+            }
+
+            .image-item img {
+                width: 50px;
+                height: 50px;
+            }
+
+            .controls button {
+                width: 100%;
+            }
+
+            .quality-control {
+                padding: 0.5rem;
+            }
+        }
+
+        @media (hover: none) {
+            button {
+                -webkit-tap-highlight-color: transparent;
+            }
+
+            .upload-box {
+                -webkit-tap-highlight-color: transparent;
+            }
+
+            input[type="range"] {
+                height: 24px;
+            }
+        }
+
+        @supports (padding: max(0px)) {
+            body {
+                padding-left: max(1rem, env(safe-area-inset-left));
+                padding-right: max(1rem, env(safe-area-inset-right));
+                padding-bottom: max(1rem, env(safe-area-inset-bottom));
+            }
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-primary: #000000;
+                --bg-secondary: #1a1a1a;
+            }
         }
     </style>
 </head>
