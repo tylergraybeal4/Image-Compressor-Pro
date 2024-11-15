@@ -7,14 +7,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
-            --bg-primary: #1a1a1a;
-            --bg-secondary: #2d2d2d;
+            --bg-primary: #0a0d14;
+            --bg-secondary: #1a1f2e;
             --text-primary: #ffffff;
-            --text-secondary: #b3b3b3;
-            --accent: #4CAF50;
-            --accent-hover: #45a049;
-            --danger: #ff4444;
-            --border: #404040;
+            --text-secondary: #8b95a9;
+            --accent: #3498db;
+            --accent-hover: #2980b9;
+            --danger: #e74c3c;
+            --border: #2c3547;
+            --success: #2ecc71;
         }
 
         * {
@@ -32,12 +33,12 @@
         }
 
         .container {
-            max-width: 900px;
-            margin: 0 auto;
+            max-width: 1000px;
+            margin: 2rem auto;
             background: var(--bg-secondary);
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            padding: 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
         }
 
         h1 {
@@ -50,18 +51,20 @@
 
         .upload-box {
             border: 2px dashed var(--border);
-            padding: 3rem;
+            padding: 3.5rem;
+            background: rgba(52, 152, 219, 0.05);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             text-align: center;
             margin-bottom: 2rem;
             border-radius: 12px;
             cursor: pointer;
             transition: all 0.3s ease;
-            background: var(--bg-primary);
         }
 
         .upload-box:hover {
             border-color: var(--accent);
-            background: rgba(76, 175, 80, 0.1);
+            background: rgba(52, 152, 219, 0.1);
+            transform: translateY(-2px);
         }
 
         .upload-box.dragover {
@@ -77,7 +80,7 @@
         }
 
         button {
-            padding: 0.75rem 1.5rem;
+            padding: 0.75rem 1.75rem;
             background: var(--accent);
             color: white;
             border: none;
@@ -85,6 +88,7 @@
             cursor: pointer;
             transition: all 0.3s ease;
             font-weight: 600;
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
         }
 
         button:hover {
@@ -103,12 +107,14 @@
         .image-item {
             display: flex;
             align-items: center;
-            padding: 1rem;
+            padding: 1.25rem;
             background: var(--bg-primary);
             margin-bottom: 1rem;
             border-radius: 8px;
             gap: 1rem;
             transition: transform 0.3s ease, opacity 0.3s ease;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
         .image-item img {
@@ -139,11 +145,12 @@
         }
 
         input[type="text"], select {
-            padding: 0.5rem;
             background: var(--bg-primary);
             border: 1px solid var(--border);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
             color: var(--text-primary);
-            border-radius: 4px;
+            transition: all 0.3s ease;
             width: 200px;
         }
 
@@ -270,11 +277,13 @@
             opacity: 1;
             position: relative;
             transform: translateY(0);
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            will-change: transform;
         }
 
         .image-item.moving {
             z-index: 2;
+            pointer-events: none;
         }
 
         .image-item.moving-up {
@@ -283,6 +292,11 @@
 
         .image-item.moving-down {
             transform: translateY(100%);
+        }
+
+        .image-select {
+            margin-right: 10px;
+            transform: scale(1.2);
         }
     </style>
 </head>
@@ -375,6 +389,11 @@
         }
 
         function updateImageList() {
+            const oldItems = document.querySelectorAll('.image-item');
+            const checkedStates = Array.from(oldItems).map(item => 
+                item.querySelector('.image-select')?.checked || false
+            );
+
             imageList.innerHTML = '';
             images.forEach((image, index) => {
                 const div = document.createElement('div');
@@ -417,6 +436,14 @@
                 imageList.appendChild(div);
             });
 
+            // Restore checkbox states
+            const newItems = document.querySelectorAll('.image-item');
+            checkedStates.forEach((checked, index) => {
+                if (newItems[index]) {
+                    newItems[index].querySelector('.image-select').checked = checked;
+                }
+            });
+
             updateCompressButton();
         }
 
@@ -438,46 +465,91 @@
 
         function moveImageSmooth(index, direction) {
             const items = document.querySelectorAll('.image-item');
-            const currentItem = items[index];
-            const targetIndex = direction === 'up' ? index - 1 : index + 1;
-            const targetItem = items[targetIndex];
-            
-            if (!targetItem || currentItem.classList.contains('moving-up') || currentItem.classList.contains('moving-down')) {
+            const selectedIndices = Array.from(items)
+                .map((item, idx) => item.querySelector('.image-select').checked ? idx : null)
+                .filter(idx => idx !== null);
+
+            // If there are selected images and the clicked image isn't selected,
+            // move only the clicked image
+            if (selectedIndices.length > 0 && !selectedIndices.includes(index)) {
+                selectedIndices.length = 0;
+            }
+
+            // If no images are selected, move only the clicked image
+            const indicesToMove = selectedIndices.length > 0 ? selectedIndices : [index];
+
+            // Prevent movement if any selected image is already moving
+            if (indicesToMove.some(idx => 
+                items[idx].classList.contains('moving-up') || 
+                items[idx].classList.contains('moving-down'))) {
                 return;
             }
 
-            // Add transition classes
-            if (direction === 'up') {
-                currentItem.classList.add('moving', 'moving-up');
-                targetItem.classList.add('moving', 'moving-down');
-            } else {
-                currentItem.classList.add('moving', 'moving-down');
-                targetItem.classList.add('moving', 'moving-up');
-            }
+            // Calculate target indices
+            const targetIndices = indicesToMove.map(idx => direction === 'up' ? idx - 1 : idx + 1);
 
-            // Swap array elements
-            [images[index], images[targetIndex]] = [images[targetIndex], images[index]];
+            // Validate movement is possible
+            if (direction === 'up' && Math.min(...indicesToMove) <= 0) return;
+            if (direction === 'down' && Math.max(...indicesToMove) >= images.length - 1) return;
 
-            // Update move buttons for both items immediately
-            updateMoveButtons(currentItem, targetIndex);
-            updateMoveButtons(targetItem, index);
+            // Add transition classes and perform movement
+            indicesToMove.forEach((idx, i) => {
+                const currentItem = items[idx];
+                const targetItem = items[targetIndices[i]];
 
-            // After transition completes, remove classes and update positions
-            setTimeout(() => {
-                // Remove transition classes
+                if (!targetItem) return;
+
+                // Clear any existing transition classes
                 currentItem.classList.remove('moving', 'moving-up', 'moving-down');
                 targetItem.classList.remove('moving', 'moving-up', 'moving-down');
-                
-                // Update DOM positions without refreshing content
+
+                // Force reflow to ensure transitions work
+                void currentItem.offsetWidth;
+                void targetItem.offsetWidth;
+
+                // Add new transition classes
+                currentItem.classList.add('moving');
+                targetItem.classList.add('moving');
+
                 if (direction === 'up') {
-                    currentItem.parentNode.insertBefore(currentItem, targetItem);
+                    currentItem.classList.add('moving-up');
+                    targetItem.classList.add('moving-down');
                 } else {
-                    targetItem.parentNode.insertBefore(targetItem, currentItem);
+                    currentItem.classList.add('moving-down');
+                    targetItem.classList.add('moving-up');
                 }
-                
-                // Reset transforms
-                currentItem.style.transform = '';
-                targetItem.style.transform = '';
+
+                // Swap array elements
+                [images[idx], images[targetIndices[i]]] = [images[targetIndices[i]], images[idx]];
+            });
+
+            // After transition completes, update DOM
+            setTimeout(() => {
+                indicesToMove.forEach((idx, i) => {
+                    const currentItem = items[idx];
+                    const targetItem = items[targetIndices[i]];
+
+                    if (!targetItem) return;
+
+                    // Remove transition classes
+                    currentItem.classList.remove('moving', 'moving-up', 'moving-down');
+                    targetItem.classList.remove('moving', 'moving-up', 'moving-down');
+
+                    // Update DOM positions
+                    if (direction === 'up') {
+                        targetItem.parentNode.insertBefore(currentItem, targetItem);
+                    } else {
+                        targetItem.parentNode.insertBefore(targetItem, currentItem);
+                    }
+
+                    // Reset transforms
+                    currentItem.style.transform = '';
+                    targetItem.style.transform = '';
+
+                    // Update move buttons
+                    updateMoveButtons(currentItem, targetIndices[i]);
+                    updateMoveButtons(targetItem, idx);
+                });
             }, 300);
         }
 
@@ -617,6 +689,42 @@
             }
         `;
         document.head.appendChild(style);
+
+        // Update CSS for smoother transitions
+        function addTransitionStyles() {
+            const style = document.createElement('style');
+            style.textContent = `
+                .image-item {
+                    opacity: 1;
+                    position: relative;
+                    transform: translateY(0);
+                    transition: transform 0.3s ease, opacity 0.3s ease;
+                    will-change: transform;
+                }
+
+                .image-item.moving {
+                    z-index: 2;
+                    pointer-events: none;
+                }
+
+                .image-item.moving-up {
+                    transform: translateY(-100%);
+                }
+
+                .image-item.moving-down {
+                    transform: translateY(100%);
+                }
+
+                .image-select {
+                    margin-right: 10px;
+                    transform: scale(1.2);
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Call this function when the page loads
+        document.addEventListener('DOMContentLoaded', addTransitionStyles);
     </script>
 </body>
 </html>
