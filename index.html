@@ -114,11 +114,11 @@
             flex-wrap: wrap;
             gap: 1rem;
             margin-bottom: 1.5rem;
+            align-items: flex-end;
         }
 
         .controls > * {
-            flex: 1 1 auto;
-            min-width: 150px;
+            flex: 0 1 auto;
         }
 
         button {
@@ -328,6 +328,19 @@
             font-size: 0.9rem;
         }
 
+        .zip-name-container input,
+        .format-select {
+            height: 36px;
+            margin-top: auto;
+        }
+
+        .format-select {
+            width: auto;
+            min-width: 80px;
+            padding: 0 0.5rem;
+            margin-top: 24px;
+        }
+
         .image-item {
             opacity: 1;
             position: relative;
@@ -358,6 +371,7 @@
             background: var(--accent);
             display: none;
             margin-left: auto;
+            white-space: nowrap;
         }
 
         #moveToTopBtn:hover {
@@ -702,6 +716,115 @@
             background: rgba(52, 152, 219, 0.1);
             transform: scale(1.01);
         }
+
+        /* Add these styles */
+        .master-quality-container {
+            background: var(--bg-primary);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        .master-quality-container label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .master-quality-value {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .master-quality-slider {
+            width: 100%;
+            margin: 0.5rem 0;
+        }
+
+        .apply-master-btn {
+            margin-top: 0.5rem;
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .apply-master-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        /* Improved mobile responsiveness */
+        @media (max-width: 768px) {
+            .container {
+                padding: var(--mobile-padding);
+                margin: 1rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .master-quality-container {
+                width: 100%;
+            }
+
+            .zip-name-container,
+            .master-quality-container,
+            #renameBtn,
+            #compressBtn,
+            #defaultFormat,
+            #moveToTopBtn {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+
+            .image-item {
+                flex-direction: column;
+                padding: 1rem;
+            }
+
+            .image-preview-section {
+                width: 100%;
+                margin-bottom: 1rem;
+            }
+
+            .image-info {
+                width: 100%;
+            }
+
+            .action-buttons-container {
+                width: 100%;
+                justify-content: space-between;
+                margin-top: 1rem;
+            }
+
+            .quality-control {
+                width: 100%;
+            }
+
+            input[type="text"],
+            select {
+                width: 100%;
+                max-width: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                margin: 0.5rem;
+                padding: 0.75rem;
+            }
+
+            .controls > * {
+                font-size: 0.9rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -711,20 +834,29 @@
         <div class="settings-panel">
             <div class="controls">
                 <div class="zip-name-container">
-                    <label for="zipName">Rename ZIP File:</label>
-                    <input type="text" 
-                        id="zipName" 
-                        placeholder="Enter ZIP file name" 
-                        value="compressed-images">
+                    <label for="zipName">ZIP Name</label>
+                    <input type="text" id="zipName" placeholder="compressed-images">
                 </div>
-                <button id="renameBtn">Rename Images</button>
-                <button id="compressBtn">Compress All</button>
-                <select id="defaultFormat" onchange="updateAllFormats(this.value)">
-                    <option value="image/jpeg">.jpg</option>
-                    <option value="image/png">.png</option>
-                    <option value="image/webp">.webp</option>
+                <select id="defaultFormat" class="format-select">
+                    <option value="image/jpeg">JPEG</option>
+                    <option value="image/png">PNG</option>
+                    <option value="image/webp">WebP</option>
                 </select>
-                <button id="moveToTopBtn">Move Selected to Top</button>
+                <button id="renameBtn">Rename Sequentially</button>
+                <button id="compressBtn">Compress Image</button>
+                <button id="moveToTopBtn" style="display: none;">Move Selected to Top</button>
+            </div>
+
+            <div class="master-quality-container">
+                <label for="masterQuality">Master Quality <span class="master-quality-value">90%</span></label>
+                <input type="range" 
+                    id="masterQuality" 
+                    class="quality-slider master-quality-slider" 
+                    min="10" 
+                    max="100" 
+                    value="90"
+                    title="Adjust quality for all images">
+                <button id="applyMasterQuality" class="apply-master-btn">Apply to All Images</button>
             </div>
         </div>
 
@@ -984,6 +1116,7 @@
                 image.customName = `${index + 1}`;
                 customInput.value = image.customName;
             });
+            showToast('Images renamed sequentially');
         });
 
         compressBtn.addEventListener('click', async () => {
@@ -1273,8 +1406,8 @@
             const moveToTopBtn = document.getElementById('moveToTopBtn');
             
             if (moveToTopBtn) {
+                moveToTopBtn.style.display = selectedCount > 0 ? 'inline-block' : 'none';
                 moveToTopBtn.textContent = `Move ${selectedCount} Selected to Top`;
-                moveToTopBtn.style.display = selectedCount > 0 ? 'block' : 'none';
             }
         }
 
@@ -1619,6 +1752,45 @@
             styleSheet.textContent = loadingStyles;
             document.head.appendChild(styleSheet);
         }
+
+        function initializeMasterQuality() {
+            const masterSlider = document.getElementById('masterQuality');
+            const masterValue = document.querySelector('.master-quality-value');
+            const applyButton = document.getElementById('applyMasterQuality');
+
+            masterSlider.addEventListener('input', (e) => {
+                const value = e.target.value;
+                masterValue.textContent = `${value}%`;
+            });
+
+            applyButton.addEventListener('click', () => {
+                const masterQuality = masterSlider.value / 100;
+                let updatedCount = 0;
+
+                // Update all individual image quality sliders
+                images.forEach((image, index) => {
+                    image.quality = masterQuality;
+                    const imageItem = document.querySelector(`.image-item[data-index="${index}"]`);
+                    if (imageItem) {
+                        const slider = imageItem.querySelector('.quality-slider');
+                        const value = imageItem.querySelector('.quality-value');
+                        if (slider && value) {
+                            slider.value = masterSlider.value;
+                            value.textContent = `${masterSlider.value}%`;
+                            updatedCount++;
+                        }
+                    }
+                });
+
+                showToast(`Updated quality for ${updatedCount} images`);
+            });
+        }
+
+        // Call this when the document loads
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeMasterQuality();
+            // ... other initialization code ...
+        });
     </script>
 </body>
 </html>
