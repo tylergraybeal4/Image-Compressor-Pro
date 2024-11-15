@@ -806,6 +806,7 @@
             if (validFiles.length > 0) {
                 showToast(`Added ${validFiles.length} image(s) successfully`);
                 updateImageList();
+                updateCompressButton();
             }
         }
 
@@ -968,7 +969,13 @@
         }
 
         function updateCompressButton() {
-            compressBtn.textContent = images.length > 1 ? 'Compress to ZIP' : 'Compress Image';
+            const compressBtn = document.getElementById('compressBtn');
+            if (images.length === 1) {
+                compressBtn.textContent = 'Compress Image';
+            } else if (images.length > 1) {
+                compressBtn.textContent = 'Compress to ZIP';
+            }
+            console.log('Current image count:', images.length); // Debug log
         }
 
         renameBtn.addEventListener('click', () => {
@@ -1133,7 +1140,6 @@
         }
 
         function deleteImage(index, event) {
-            // Prevent event from bubbling up if it exists
             if (event) {
                 event.stopPropagation();
             }
@@ -1142,45 +1148,38 @@
             const items = Array.from(imageList.children);
             const selectedItems = items.filter(item => item.querySelector('.image-select:checked'));
 
-            // If there are selected items and the clicked delete button is on one of the selected items
             if (selectedItems.length > 0 && items[index].querySelector('.image-select:checked')) {
-                // Get all selected indices in reverse order (to avoid index shifting issues)
                 const selectedIndices = selectedItems
                     .map(item => Array.from(imageList.children).indexOf(item))
-                    .sort((a, b) => b - a); // Sort in descending order
+                    .sort((a, b) => b - a);
 
-                // Remove each selected image
                 selectedIndices.forEach(idx => {
                     images.splice(idx, 1);
                     items[idx].style.opacity = '0';
                     items[idx].style.transform = 'scale(0.9)';
                 });
 
-                // Hide the move to top button immediately
                 const moveToTopBtn = document.getElementById('moveToTopBtn');
                 if (moveToTopBtn) {
                     moveToTopBtn.style.display = 'none';
                 }
-
-                // Update the UI after a brief animation
-                setTimeout(() => {
-                    updateImageList();
-                    // Ensure all checkboxes are unchecked
-                    const checkboxes = document.querySelectorAll('.image-select');
-                    checkboxes.forEach(checkbox => checkbox.checked = false);
-                    updateControlButtons();
-                }, 300);
             } else {
-                // Single image delete
                 images.splice(index, 1);
                 items[index].style.opacity = '0';
                 items[index].style.transform = 'scale(0.9)';
-                
-                setTimeout(() => {
-                    updateImageList();
-                    updateControlButtons();
-                }, 300);
             }
+
+            // Update immediately
+            updateCompressButton();
+
+            // Update the UI after animation
+            setTimeout(() => {
+                updateImageList();
+                const checkboxes = document.querySelectorAll('.image-select');
+                checkboxes.forEach(checkbox => checkbox.checked = false);
+                updateControlButtons();
+                updateCompressButton(); // Update again after UI refresh
+            }, 300);
         }
 
         function moveImage(index, direction) {
