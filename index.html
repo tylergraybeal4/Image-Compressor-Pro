@@ -588,6 +588,8 @@
             min-width: 80px;
             height: 36px;
             padding: 0 0.5rem;
+            margin: 0; /* Remove any margin that might affect alignment */
+            align-self: center; /* Ensure vertical centering */
         }
 
         /* Quality control container */
@@ -946,6 +948,24 @@
                 gap: 1rem;
             }
         }
+
+        /* Format select styling */
+        .format-select {
+            width: auto;
+            min-width: 80px;
+            height: 36px;
+            padding: 0 0.5rem;
+            margin: 0;
+            align-self: center;
+        }
+
+        /* Mobile-specific adjustments */
+        @media (max-width: 768px) {
+            .format-select {
+                min-width: 140px; /* Increased width for mobile */
+                width: auto;
+            }
+        }
     </style>
 </head>
 <body>
@@ -958,27 +978,29 @@
                     <label for="zipName">ZIP Name</label>
                     <input type="text" id="zipName" placeholder="compressed-images">
                 </div>
-                <select id="defaultFormat" class="format-select">
-                    <option value="image/png">.PNG</option>
-                    <option value="image/jpeg">.JPEG</option>
-                    <option value="image/jpeg">.JPG</option>
-                    <option value="image/webp">.WEBP</option>
-                </select>
                 <button id="renameBtn">Rename Sequentially</button>
                 <button id="compressBtn">Compress Image</button>
                 <button id="moveToTopBtn" style="display: none;">Move Selected to Top</button>
             </div>
 
-            <div class="master-quality-container">
-                <label for="masterQuality">Master Quality <span class="master-quality-value">90%</span></label>
-                <input type="range" 
-                    id="masterQuality" 
-                    class="quality-slider master-quality-slider" 
-                    min="10" 
-                    max="100" 
-                    value="90"
-                    title="Adjust quality for all images">
-                <button id="applyMasterQuality" class="apply-master-btn">Apply to All Images</button>
+            <div class="master-controls">
+                <select id="defaultFormat" class="format-select">
+                    <option value="original">Original Format</option>
+                    <option value="image/jpeg">.JPEG</option>
+                    <option value="image/png">.PNG</option>
+                    <option value="image/webp">.WEBP</option>
+                </select>
+                <div class="master-quality-container">
+                    <label for="masterQuality">Master Compress Value <span class="master-quality-value">1%</span></label>
+                    <input type="range" 
+                        id="masterQuality" 
+                        class="quality-slider master-quality-slider" 
+                        min="1" 
+                        max="100" 
+                        value="1"
+                        title="Adjust compression for all images">
+                    <button id="applyMasterQuality" class="apply-master-btn">Apply to All Images</button>
+                </div>
             </div>
         </div>
 
@@ -1047,20 +1069,21 @@
             });
             
             validFiles.forEach(file => {
-                const defaultQuality = document.getElementById('masterQuality').value / 100;
                 images.push({
                     file,
                     name: file.name,
                     customName: '',
                     compressed: false,
                     progress: 0,
-                    quality: defaultQuality
+                    quality: 1.0,
+                    compressionValue: 1
                 });
             });
             
             if (validFiles.length > 0) {
                 showToast(`Added ${validFiles.length} image(s) successfully`);
                 updateImageList();
+                updateCompressButton();
             }
         }
 
@@ -1083,85 +1106,7 @@
 
             // Now process each image
             imageElements.forEach(({ div, image, index }) => {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    // Set initial buttons based on position
-                    const moveButtons = generateMoveButtons(index, totalImages);
-                    
-                    div.innerHTML = `
-                        <input type="checkbox" class="image-select" onchange="updateControlButtons()">
-                        <div class="image-preview-section">
-                            <img src="${e.target.result}" alt="${image.name}">
-                            <div class="size-info">Calculating size...</div>
-                            <div class="quality-indicator">Analyzing quality...</div>
-                        </div>
-                        <div class="image-info">
-                            <input type="text" class="custom-name" value="${image.customName || image.name}" placeholder="Custom name">
-                            <div class="quality-control">
-                                <label>Image Quality <span class="quality-value">${Math.round(image.quality * 100)}%</span></label>
-                                <input type="range" 
-                                    class="quality-slider" 
-                                    min="10" 
-                                    max="100" 
-                                    value="${Math.round(image.quality * 100)}"
-                                    oninput="updateQualitySmooth(this, ${index})">
-                            </div>
-                        </div>
-                        <div class="action-buttons-container">
-                            <div class="move-buttons">
-                                ${moveButtons}
-                            </div>
-                            <button class="delete-btn" onclick="deleteImage(${index}, event)">×</button>
-                            <select class="format-select">
-                                <option value="image/png">.PNG</option>
-                                <option value="image/jpeg">.JPEG</option>
-                                <option value="image/jpeg">.JPG</option>
-                                <option value="image/webp">.WEBP</option>
-                            </select>
-                        </div>
-                    `;
-
-                    // Calculate compression in the background
-                    try {
-                        const format = 'image/jpeg';
-                        const quality = image.quality;
-                        const compressedBlob = await compressImage(image.file, format, quality);
-                        
-                        if (!div.isConnected) return; // Skip if element was removed
-
-                        const sizeInfo = div.querySelector('.size-info');
-                        const qualityIndicator = div.querySelector('.quality-indicator');
-                        
-                        // Update size information
-                        const originalSize = formatSize(image.file.size);
-                        const compressedSize = formatSize(compressedBlob.size);
-                        const ratio = ((compressedBlob.size / image.file.size) * 100).toFixed(1);
-                        
-                        sizeInfo.innerHTML = `
-                            Original: ${originalSize} → Compressed: ${compressedSize}
-                            <br>
-                            <span class="compression-ratio">(${ratio}% of original)</span>
-                        `;
-                        
-                        // Update quality indicator
-                        const qualityLevel = getQualityLevel(Math.round(quality * 100), ratio);
-                        qualityIndicator.innerHTML = `
-                            Quality Impact: ${qualityLevel.label}
-                            <div class="quality-indicator-bar">
-                                <div class="indicator-fill" style="width: ${Math.round(quality * 100)}%; background: ${qualityLevel.color}"></div>
-                            </div>
-                        `;
-                    } catch (err) {
-                        console.error('Failed to calculate initial compression:', err);
-                        if (div.isConnected) {
-                            div.querySelector('.size-info').textContent = `Original: ${formatSize(image.file.size)}`;
-                            div.querySelector('.quality-indicator').textContent = 'Quality analysis failed';
-                        }
-                    }
-
-                    div.classList.remove('loading');
-                };
-                reader.readAsDataURL(image.file);
+                updateImagePreview(div, image, index);
             });
         }
 
@@ -1184,65 +1129,88 @@
 
         let isUpdating = false;
 
-        function updateQualitySmooth(slider, index) {
-            if (isUpdating) return;
+        // Add debouncing to prevent excessive CPU usage
+        let debounceTimer;
+        async function updateQualitySmooth(slider, index) {
+            clearTimeout(debounceTimer);
             
-            const value = parseInt(slider.value);
+            const compressValue = parseInt(slider.value);
             const imageItem = slider.closest('.image-item');
             const qualityValue = imageItem.querySelector('.quality-value');
-            const sizeInfo = imageItem.querySelector('.size-info');
-            const qualityIndicator = imageItem.querySelector('.quality-indicator');
+            qualityValue.textContent = `${compressValue}%`;
             
-            qualityValue.textContent = value + '%';
-            
-            // Clear any existing timeout
-            if (slider.timeout) {
-                clearTimeout(slider.timeout);
-            }
-            
-            // Set a shorter timeout for better responsiveness
-            slider.timeout = setTimeout(async () => {
+            debounceTimer = setTimeout(async () => {
+                const sizeInfo = imageItem.querySelector('.size-info');
+                const qualityIndicator = imageItem.querySelector('.quality-indicator');
+                
                 try {
-                    const image = images[index];
-                    const formatSelect = imageItem.querySelector('.format-select');
-                    const format = formatSelect ? formatSelect.value : 'image/jpeg';
+                    const format = imageItem.querySelector('.format-select').value;
+                    const result = await compressImage(images[index].file, format, compressValue);
                     
-                    // Compress image with current settings
-                    const compressedBlob = await compressImage(image.file, format, value / 100);
+                    // Calculate size reduction
+                    const originalSize = images[index].file.size;
+                    const compressedSize = result.blob.size;
+                    const sizeRatio = ((compressedSize / originalSize) * 100).toFixed(1);
                     
-                    // Update size information
-                    const originalSize = formatSize(image.file.size);
-                    const compressedSize = formatSize(compressedBlob.size);
-                    const ratio = ((compressedBlob.size / image.file.size) * 100).toFixed(1);
+                    // Calculate pixel reduction
+                    const originalPixels = result.originalWidth * result.originalHeight;
+                    const newPixels = result.width * result.height;
+                    const pixelRatio = ((newPixels / originalPixels) * 100).toFixed(1);
                     
                     sizeInfo.innerHTML = `
-                        Original: ${originalSize} → Compressed: ${compressedSize}
+                        Original: ${formatSize(originalSize)} → Compressed: ${formatSize(compressedSize)}
                         <br>
-                        <span class="compression-ratio">(${ratio}% of original)</span>
+                        <span class="compression-ratio">(${sizeRatio}% of original size, ${pixelRatio}% of original pixels)</span>
                     `;
                     
-                    // Update quality indicator
-                    const qualityLevel = getQualityLevel(value, ratio);
+                    // Update quality indicator based on compression value
+                    let qualityLevel;
+                    if (compressValue <= 20) {
+                        qualityLevel = { label: 'Light Reduction - Minor changes', color: '#2ecc71' };
+                    } else if (compressValue <= 40) {
+                        qualityLevel = { label: 'Moderate Reduction - Some detail loss', color: '#27ae60' };
+                    } else if (compressValue <= 60) {
+                        qualityLevel = { label: 'Significant Reduction - Noticeable changes', color: '#f1c40f' };
+                    } else if (compressValue <= 80) {
+                        qualityLevel = { label: 'Heavy Reduction - Major changes', color: '#e67e22' };
+                    } else {
+                        qualityLevel = { label: 'Maximum Reduction - Extreme changes', color: '#e74c3c' };
+                    }
+                    
                     qualityIndicator.innerHTML = `
-                        Quality Impact: ${qualityLevel.label}
+                        Size Impact: ${qualityLevel.label}
                         <div class="quality-indicator-bar">
-                            <div class="indicator-fill" style="width: ${value}%; background: ${qualityLevel.color}"></div>
+                            <div class="indicator-fill" style="width: ${compressValue}%; background: ${qualityLevel.color}"></div>
                         </div>
                     `;
                     
-                    images[index].quality = value / 100;
+                    images[index].quality = compressValue;
                 } catch (err) {
-                    console.error('Preview compression failed:', err);
+                    console.error('Failed to update compression:', err);
                 }
-            }, 150); // Reduced timeout for better responsiveness
+            }, 250);
         }
 
-        function getQualityLevel(quality, compressionRatio) {
-            if (quality >= 90) return { label: 'Excellent - No visible loss', color: '#2ecc71' };
-            if (quality >= 75) return { label: 'Good - Minimal loss', color: '#27ae60' };
-            if (quality >= 50) return { label: 'Fair - Some detail loss', color: '#f1c40f' };
-            if (quality >= 25) return { label: 'Poor - Noticeable artifacts', color: '#e67e22' };
-            return { label: 'Very Poor - Significant degradation', color: '#e74c3c' };
+        function getQualityLevel(compressionValue, ratio) {
+            // Only show "Size increased" if ratio is GREATER than 100
+            if (ratio > 100) {
+                return { label: 'Size increased - Using original', color: '#e74c3c' };
+            }
+            
+            // Lower compression value = lighter impact
+            if (compressionValue <= 10) {
+                return { label: 'Minimal Compression - Highest Quality', color: '#2ecc71' };
+            }
+            if (compressionValue <= 30) {
+                return { label: 'Light Compression - High Quality', color: '#27ae60' };
+            }
+            if (compressionValue <= 60) {
+                return { label: 'Medium Compression - Good Quality', color: '#f1c40f' };
+            }
+            if (compressionValue <= 80) {
+                return { label: 'Heavy Compression - Reduced Quality', color: '#e67e22' };
+            }
+            return { label: 'Maximum Compression - Lowest Quality', color: '#e74c3c' };
         }
 
         function moveImageSmooth(index, direction) {
@@ -1337,14 +1305,23 @@
                 if (images.length === 1) {
                     // Single image compression
                     const image = images[0];
-                    const formatSelect = document.querySelector('.format-select');
-                    const format = formatSelect ? formatSelect.value : 'image/jpeg';
-                    const ext = format.split('/')[1];
+                    const imageItem = document.querySelector('.image-item');
+                    const formatSelect = imageItem.querySelector('.format-select');
+                    const format = formatSelect.value;
                     
-                    const compressedBlob = await compressImage(image.file, format, image.quality);
+                    // Determine file extension based on format
+                    let ext;
+                    if (format === 'original') {
+                        ext = image.file.name.split('.').pop();
+                    } else {
+                        ext = format.split('/')[1];
+                    }
                     
-                    // Force download
-                    forceDownload(compressedBlob, `${image.customName || image.name.split('.')[0]}.${ext}`);
+                    const result = await compressImage(image.file, format, image.quality || 1);
+                    
+                    // Force download with correct extension
+                    const fileName = `${image.customName || image.name.split('.')[0]}.${ext}`;
+                    forceDownload(result.blob, fileName);
                     showToast('Image compressed and downloaded!');
                     
                 } else {
@@ -1353,14 +1330,24 @@
                     let completedCount = 0;
                     
                     for (const image of images) {
-                        const formatSelect = document.querySelector('.format-select');
-                        const format = formatSelect ? formatSelect.value : 'image/jpeg';
-                        const ext = format.split('/')[1];
+                        const imageItem = document.querySelector(`[data-index="${images.indexOf(image)}"]`);
+                        const formatSelect = imageItem.querySelector('.format-select');
+                        const format = formatSelect.value;
+                        
+                        // Determine file extension based on format
+                        let ext;
+                        if (format === 'original') {
+                            ext = image.file.name.split('.').pop();
+                        } else {
+                            ext = format.split('/')[1];
+                        }
                         
                         try {
-                            const compressedBlob = await compressImage(image.file, format, image.quality);
+                            const result = await compressImage(image.file, format, image.quality || 1);
                             const fileName = `${image.customName || image.name.split('.')[0]}.${ext}`;
-                            zip.file(fileName, compressedBlob);
+                            
+                            // Add to zip with proper extension
+                            zip.file(fileName, result.blob);
                             
                             completedCount++;
                             showToast(`Compressed ${completedCount} of ${images.length} images`);
@@ -1391,10 +1378,11 @@
             }
         });
 
+        // Helper function to force download
         function forceDownload(blob, filename) {
             // Create a link and click it
             const link = document.createElement('a');
-            link.href = window.URL.createObjectURL(blob);
+            link.href = URL.createObjectURL(blob);
             link.download = filename;
             link.style.display = 'none';
             document.body.appendChild(link);
@@ -1403,54 +1391,94 @@
             // Cleanup
             setTimeout(() => {
                 document.body.removeChild(link);
-                window.URL.revokeObjectURL(link.href);
+                URL.revokeObjectURL(link.href);
             }, 100);
         }
 
-        function compressImage(file, format, quality) {
+        function compressImage(file, targetFormat, compressionValue) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
                 img.src = URL.createObjectURL(file);
                 
                 img.onload = () => {
                     URL.revokeObjectURL(img.src);
+                    
                     const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    
                     const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, img.width, img.height);
                     
-                    // Calculate dimensions while maintaining aspect ratio
-                    let width = img.width;
-                    let height = img.height;
-                    const maxSize = 4096;
-                    
-                    if (width > maxSize || height > maxSize) {
-                        if (width > height) {
-                            height = Math.round((height * maxSize) / width);
-                            width = maxSize;
-                        } else {
-                            width = Math.round((width * maxSize) / height);
-                            height = maxSize;
-                        }
+                    // Determine output format
+                    let outputFormat;
+                    if (targetFormat === 'original') {
+                        outputFormat = file.type;
+                    } else {
+                        outputFormat = targetFormat;
                     }
                     
-                    // Set canvas size
-                    canvas.width = width;
-                    canvas.height = height;
+                    // Extremely gradual quality reduction
+                    let quality;
+                    if (compressionValue <= 5) {
+                        // Ultra minimal compression (0.999-0.995 quality)
+                        quality = 0.999 - (compressionValue / 5) * 0.004;
+                    } else if (compressionValue <= 20) {
+                        // Very minimal compression (0.995-0.98 quality)
+                        quality = 0.995 - ((compressionValue - 5) / 15) * 0.015;
+                    } else if (compressionValue <= 40) {
+                        // Light compression (0.98-0.90 quality)
+                        quality = 0.98 - ((compressionValue - 20) / 20) * 0.08;
+                    } else if (compressionValue <= 70) {
+                        // Moderate compression (0.90-0.70 quality)
+                        quality = 0.90 - ((compressionValue - 40) / 30) * 0.20;
+                    } else {
+                        // Heavy compression (0.70-0.30 quality)
+                        quality = 0.70 - ((compressionValue - 70) / 30) * 0.40;
+                    }
                     
-                    // Draw and compress
-                    ctx.imageSmoothingEnabled = true;
-                    ctx.imageSmoothingQuality = 'high';
-                    ctx.drawImage(img, 0, 0, width, height);
+                    // Adjust quality based on file size
+                    const fileSizeMB = file.size / (1024 * 1024);
+                    if (fileSizeMB <= 1) {
+                        // For small files (≤1MB), be very gentle
+                        quality = Math.min(1, quality + 0.15);
+                    } else if (fileSizeMB <= 5) {
+                        // For medium files (1-5MB), be moderately gentle
+                        quality = Math.min(1, quality + 0.1);
+                    }
                     
-                    // Convert to blob
                     canvas.toBlob(
-                        (blob) => {
-                            if (blob) {
-                                resolve(blob);
-                            } else {
-                                reject(new Error('Failed to compress image'));
+                        blob => {
+                            if (!blob) {
+                                reject(new Error('Failed to create blob'));
+                                return;
                             }
+                            
+                            // If compressed size is larger or compression is minimal, return original
+                            if (blob.size > file.size || (compressionValue <= 5 && blob.size >= file.size * 0.98)) {
+                                resolve({
+                                    blob: file,
+                                    width: img.width,
+                                    height: img.height,
+                                    originalWidth: img.width,
+                                    originalHeight: img.height,
+                                    format: file.type,
+                                    useOriginal: true
+                                });
+                                return;
+                            }
+                            
+                            resolve({
+                                blob,
+                                width: canvas.width,
+                                height: canvas.height,
+                                originalWidth: img.width,
+                                originalHeight: img.height,
+                                format: outputFormat,
+                                useOriginal: false
+                            });
                         },
-                        format,
+                        outputFormat,
                         quality
                     );
                 };
@@ -1970,42 +1998,74 @@
             });
 
             applyButton.addEventListener('click', async () => {
-                const masterQuality = masterSlider.value / 100;
-                let updatedCount = 0;
-
-                showLoading();
+                const masterQualityValue = parseInt(masterSlider.value);
+                const masterFormat = document.getElementById('defaultFormat').value;
+                const loadingOverlay = document.querySelector('.loading-overlay');
                 
                 try {
-                    // Update all individual image quality sliders
-                    for (let index = 0; index < images.length; index++) {
+                    loadingOverlay.classList.add('active');
+                    
+                    // Process all images
+                    const imageItems = document.querySelectorAll('.image-item');
+                    for (let i = 0; i < imageItems.length; i++) {
+                        const imageItem = imageItems[i];
+                        const index = parseInt(imageItem.dataset.index);
                         const image = images[index];
-                        image.quality = masterQuality;
-                        const imageItem = document.querySelector(`.image-item[data-index="${index}"]`);
                         
-                        if (imageItem) {
-                            const slider = imageItem.querySelector('.quality-slider');
-                            const value = imageItem.querySelector('.quality-value');
-                            if (slider && value) {
-                                slider.value = masterSlider.value;
-                                value.textContent = `${masterSlider.value}%`;
-                                
-                                // Force quality update for each image
-                                await new Promise(resolve => {
-                                    updateQualitySmooth(slider, index);
-                                    setTimeout(resolve, 100); // Small delay between updates
-                                });
-                                
-                                updatedCount++;
-                            }
+                        // Update slider value and format
+                        const slider = imageItem.querySelector('.quality-slider');
+                        const qualityValue = imageItem.querySelector('.quality-value');
+                        const formatSelect = imageItem.querySelector('.format-select');
+                        
+                        slider.value = masterQualityValue;
+                        qualityValue.textContent = `${masterQualityValue}%`;
+                        formatSelect.value = masterFormat;
+                        
+                        // Perform compression with new format
+                        try {
+                            const result = await compressImage(image.file, masterFormat, masterQualityValue);
+                            
+                            // Update size information
+                            const sizeInfo = imageItem.querySelector('.size-info');
+                            const qualityIndicator = imageItem.querySelector('.quality-indicator');
+                            
+                            // Calculate compression ratio
+                            const ratio = ((result.blob.size / image.file.size) * 100).toFixed(1);
+                            
+                            // Update size info
+                            sizeInfo.innerHTML = `
+                                Original: ${formatSize(image.file.size)} → Compressed: ${formatSize(result.blob.size)}
+                                <br>
+                                <span class="compression-ratio">(${ratio}% of original size, ${result.useOriginal ? '100.0' : ratio}% of original pixels)</span>
+                            `;
+                            
+                            // Update quality indicator
+                            const qualityLevel = getQualityLevel(masterQualityValue, ratio);
+                            qualityIndicator.innerHTML = `
+                                Size Impact: ${qualityLevel.label}
+                                <div class="quality-indicator-bar">
+                                    <div class="indicator-fill" style="width: ${masterQualityValue}%; background: ${qualityLevel.color}"></div>
+                                </div>
+                            `;
+                            
+                            // Store the compressed result and format
+                            image.compressed = result.blob;
+                            image.quality = masterQualityValue;
+                            image.format = masterFormat;
+                            
+                        } catch (err) {
+                            console.error(`Failed to compress image ${index}:`, err);
+                            showToast(`Failed to compress image ${index + 1}`, 'error');
                         }
                     }
                     
-                    showToast(`Updated quality for ${updatedCount} images`);
+                    showToast('Applied compression and format to all images');
+                    
                 } catch (err) {
-                    console.error('Error updating qualities:', err);
-                    showToast('Error updating some images', 'error');
+                    console.error('Failed to apply master settings:', err);
+                    showToast('Failed to apply master settings', 'error');
                 } finally {
-                    hideLoading();
+                    loadingOverlay.classList.remove('active');
                 }
             });
         }
@@ -2014,7 +2074,137 @@
         document.addEventListener('DOMContentLoaded', () => {
             initializeMasterQuality();
             // ... other initialization code ...
+            updateCompressButton();
         });
+
+        function updateSizeInfo(imageItem, originalSize, result) {
+            const sizeInfo = imageItem.querySelector('.size-info');
+            const compressedSize = result.blob.size;
+            
+            if (result.useOriginal) {
+                sizeInfo.innerHTML = `
+                    Original: ${formatSize(originalSize)} (Using original file)
+                    <br>
+                    <span class="compression-ratio">Compression skipped - would increase size</span>
+                `;
+            } else {
+                const ratio = ((compressedSize / originalSize) * 100).toFixed(1);
+                sizeInfo.innerHTML = `
+                    Original: ${formatSize(originalSize)} → Compressed: ${formatSize(compressedSize)}
+                    <br>
+                    <span class="compression-ratio">(${ratio}% of original size)</span>
+                `;
+            }
+        }
+
+        // Update the initial image display
+        async function updateImagePreview(div, image, index) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const moveButtons = generateMoveButtons(index, images.length);
+                
+                div.innerHTML = `
+                    <input type="checkbox" class="image-select" onchange="updateControlButtons()">
+                    <div class="image-preview-section">
+                        <img src="${e.target.result}" alt="${image.name}">
+                        <div class="size-info">
+                            Original: ${formatSize(image.file.size)} → Uncompressed
+                            <br>
+                            <span class="compression-ratio">(100% of original size)</span>
+                        </div>
+                        <div class="quality-indicator">
+                            Size Impact: Minimal Compression - Highest Quality
+                            <div class="quality-indicator-bar">
+                                <div class="indicator-fill" style="width: 1%; background: #2ecc71"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="image-info">
+                        <input type="text" class="custom-name" value="${image.customName || image.name}" placeholder="Custom name">
+                        <div class="quality-control">
+                            <label>Compress Value <span class="quality-value">1%</span></label>
+                            <input type="range" 
+                                class="quality-slider" 
+                                min="1" 
+                                max="100" 
+                                value="1"
+                                oninput="updateQualitySmooth(this, ${index})">
+                        </div>
+                    </div>
+                    <div class="action-buttons-container">
+                        <div class="move-buttons">
+                            ${moveButtons}
+                        </div>
+                        <button class="delete-btn" onclick="deleteImage(${index}, event)">×</button>
+                        <select class="format-select">
+                            <option value="original">Original Format</option>
+                            <option value="image/jpeg">.JPEG</option>
+                            <option value="image/png">.PNG</option>
+                            <option value="image/webp">.WEBP</option>
+                        </select>
+                    </div>
+                `;
+                
+                div.classList.remove('loading');
+            };
+            reader.readAsDataURL(image.file);
+        }
+
+        // Make sure the format select changes trigger compression preview
+        document.addEventListener('change', (e) => {
+            if (e.target.classList.contains('format-select')) {
+                const imageItem = e.target.closest('.image-item');
+                const index = parseInt(imageItem.dataset.index);
+                const slider = imageItem.querySelector('.quality-slider');
+                updateQualitySmooth(slider, index);
+            }
+        });
+
+        // Add event listener for the master format select
+        document.getElementById('defaultFormat').addEventListener('change', function(e) {
+            const selectedFormat = e.target.value;
+            updateAllFormats(selectedFormat);
+            
+            // Update all images with new format
+            document.querySelectorAll('.image-item').forEach(async (imageItem, index) => {
+                const slider = imageItem.querySelector('.quality-slider');
+                await updateQualitySmooth(slider, index);
+            });
+            
+            showToast(`Changed all images to ${selectedFormat.split('/')[1] || 'original'} format`);
+        });
+
+        // Add better error handling
+        function handleError(error, context) {
+            console.error(`Error in ${context}:`, error);
+            
+            let message;
+            if (error.name === 'QuotaExceededError') {
+                message = 'Storage quota exceeded. Try processing fewer images.';
+            } else if (error.name === 'NotSupportedError') {
+                message = 'This image format is not supported.';
+            } else {
+                message = 'An error occurred. Please try again.';
+            }
+            
+            showToast(message, 'error');
+        }
+
+        // Improve file validation
+        function validateFile(file) {
+            const maxSize = 50 * 1024 * 1024; // 50MB
+            const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+            
+            if (file.size > maxSize) {
+                throw new Error(`File ${file.name} is too large (max 50MB)`);
+            }
+            
+            if (!validTypes.includes(file.type)) {
+                throw new Error(`File ${file.name} is not a supported image type`);
+            }
+            
+            return true;
+        }
     </script>
 </body>
 </html>
