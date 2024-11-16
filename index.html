@@ -18,6 +18,11 @@
             --success: #2ecc71;
             --container-padding: 2.5rem;
             --mobile-padding: 1rem;
+            
+            /* New Variables */
+            --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            --button-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         * {
@@ -38,9 +43,11 @@
             max-width: 1200px;
             margin: 2rem auto;
             padding: var(--container-padding);
-            background: var(--bg-secondary);
-            border-radius: 20px;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+            background: linear-gradient(145deg, var(--bg-secondary), rgba(26, 31, 46, 0.95));
+            border-radius: 24px;
+            box-shadow: var(--card-shadow);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         h1 {
@@ -60,7 +67,12 @@
         }
 
         .upload-box {
-            min-height: 200px;
+            min-height: 180px;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            transition: var(--transition);
+            backdrop-filter: blur(5px);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -69,9 +81,6 @@
             position: relative;
             overflow: hidden;
             margin-bottom: 2rem;
-            border: 2px dashed var(--border);
-            border-radius: 12px;
-            transition: all 0.3s ease;
             padding: 2rem;
         }
 
@@ -96,17 +105,18 @@
         }
 
         .image-item {
-            background: var(--bg-primary);
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+            border-radius: 16px;
             padding: 1.5rem;
-            border-radius: 12px;
-            margin-bottom: 1rem;
-            border: 1px solid var(--border);
-            transition: all 0.3s ease;
+            margin-bottom: 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+            transition: var(--transition);
         }
 
         .image-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
         }
 
         .controls {
@@ -122,22 +132,23 @@
         }
 
         button {
-            padding: 0.75rem 1rem;
-            background: var(--accent);
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(145deg, var(--accent), var(--accent-hover));
             color: white;
             border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            border-radius: 12px;
             font-weight: 600;
-            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+            letter-spacing: 0.5px;
+            box-shadow: var(--button-shadow);
+            transition: var(--transition);
+            cursor: pointer;
             min-height: 44px;
             min-width: 44px;
         }
 
         button:hover {
-            background: var(--accent-hover);
-            transform: translateY(-1px);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(52, 152, 219, 0.3);
         }
 
         button.delete-btn {
@@ -195,19 +206,21 @@
             transition: width 0.3s ease;
         }
 
-        input[type="text"], select {
-            background: var(--bg-primary);
-            border: 1px solid var(--border);
+        input[type="text"], select, .format-select {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
             padding: 0.75rem 1rem;
-            border-radius: 8px;
             color: var(--text-primary);
-            transition: all 0.3s ease;
+            transition: var(--transition);
+            backdrop-filter: blur(5px);
             width: 100%;
             max-width: 200px;
         }
 
-        input[type="text"]:focus, select:focus {
+        input[type="text"]:focus, select:focus, .format-select:focus {
             border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
             outline: none;
         }
 
@@ -221,20 +234,22 @@
         }
 
         .quality-slider {
-            flex: 1;
-            height: 6px;
-            appearance: none;
-            background: var(--border);
-            border-radius: 3px;
+            height: 8px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+            border-radius: 4px;
         }
 
         .quality-slider::-webkit-slider-thumb {
-            appearance: none;
-            width: 16px;
-            height: 16px;
-            background: var(--accent);
-            border-radius: 50%;
-            cursor: pointer;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border: 2px solid var(--accent);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            transition: var(--transition);
+        }
+
+        .quality-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
         }
 
         .quality-slider::-moz-range-thumb {
@@ -492,6 +507,7 @@
             :root {
                 --bg-primary: #000000;
                 --bg-secondary: #1a1a1a;
+                --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             }
         }
 
@@ -585,11 +601,37 @@
         /* Format select styling */
         .format-select {
             width: auto;
-            min-width: 80px;
+            min-width: 140px;
             height: 36px;
-            padding: 0 0.5rem;
-            margin: 0; /* Remove any margin that might affect alignment */
-            align-self: center; /* Ensure vertical centering */
+            padding: 0.5rem 2rem 0.5rem 1rem;
+            margin: 0;
+            align-self: center;
+        }
+
+        /* Style the dropdown options */
+        select option,
+        .format-select option {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 0.75rem;
+            white-space: nowrap;
+        }
+
+        /* Ensure the master format select is consistent */
+        #defaultFormat {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-width: 160px;
+            margin-bottom: 1rem;
+        }
+
+        /* Mobile-specific adjustments */
+        @media (max-width: 768px) {
+            .format-select {
+                min-width: 160px;
+                width: auto;
+                padding: 0.5rem 2rem 0.5rem 1rem;
+            }
         }
 
         /* Quality control container */
@@ -598,37 +640,76 @@
             padding: 0.75rem;
             border-radius: 6px;
             margin-top: 0.75rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .quality-control label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        .quality-value {
+            color: var(--accent);
+            font-weight: bold;
+            margin-left: 0.5rem;
+            min-width: 3em;
+        }
+
+        .quality-slider {
+            flex: 1;
+            min-width: 100px;
+            margin: 0;
         }
 
         /* Mobile-specific adjustments */
         @media (max-width: 768px) {
-            .image-item {
-                flex-wrap: wrap;
+            .quality-control {
+                display: grid;
+                grid-template-columns: auto 1fr;
+                align-items: center;
+                gap: 0.75rem;
+                padding: 0.75rem;
+                margin-top: 0.5rem;
             }
 
-            .action-buttons-container {
+            .quality-control label {
+                grid-column: 1;
+                margin: 0;
+                min-width: auto;
+            }
+
+            .quality-slider {
+                grid-column: 2;
                 width: 100%;
-                margin-top: 1rem;
-                justify-content: flex-start;
-                align-items: center;
-                gap: 0.75rem;
-                margin-bottom: 0;
-            }
-
-            .move-buttons {
-                display: flex;
-                flex-direction: row !important;
-                gap: 0.75rem;
-                align-items: center;
                 margin: 0;
             }
 
-            .delete-btn {
-                margin: 0;
+            /* Adjust master quality container for consistency */
+            .master-quality-container {
+                padding: 1rem;
             }
 
-            .format-select {
-                margin-left: auto;
+            .master-quality-container .quality-control {
+                margin-top: 0.5rem;
+            }
+        }
+
+        /* Even smaller screens */
+        @media (max-width: 480px) {
+            .quality-control {
+                gap: 0.5rem;
+                padding: 0.5rem;
+            }
+
+            .quality-control label {
+                font-size: 0.85rem;
             }
         }
 
@@ -652,12 +733,11 @@
         }
 
         .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid var(--accent);
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 1s linear infinite;
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid var(--accent);
+            box-shadow: 0 0 32px rgba(52, 152, 219, 0.2);
         }
 
         @keyframes spin {
@@ -673,12 +753,14 @@
         }
 
         .toast {
-            background: var(--bg-secondary);
-            color: var(--text-primary);
+            background: linear-gradient(145deg, var(--bg-secondary), rgba(26, 31, 46, 0.95));
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
             padding: 1rem 1.5rem;
-            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
             margin-top: 0.5rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             transform: translateX(120%);
             transition: transform 0.3s ease;
         }
@@ -903,12 +985,33 @@
         @media (max-width: 768px) {
             .action-buttons-container {
                 width: 100%;
+                display: flex;
+                align-items: center;
                 justify-content: flex-end;
+                gap: 0.5rem;
                 margin-top: 0.5rem;
             }
 
             .format-select {
+                height: 36px;
+                padding: 0 1rem;
                 margin: 0;
+                align-self: center;
+            }
+
+            /* Ensure all buttons have the same vertical alignment */
+            .move-buttons,
+            .delete-btn,
+            .format-select {
+                align-self: center;
+                margin: 0;
+            }
+
+            /* Reset any transforms or positioning */
+            .move-buttons button,
+            .delete-btn {
+                transform: none;
+                position: static;
             }
         }
 
@@ -952,18 +1055,128 @@
         /* Format select styling */
         .format-select {
             width: auto;
-            min-width: 80px;
+            min-width: 140px;
             height: 36px;
-            padding: 0 0.5rem;
+            padding: 0.5rem 2rem 0.5rem 1rem;
             margin: 0;
             align-self: center;
         }
 
+        /* Style the dropdown options */
+        select option,
+        .format-select option {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 0.75rem;
+            white-space: nowrap;
+        }
+
+        /* Ensure the master format select is consistent */
+        #defaultFormat {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-width: 160px;
+            margin-bottom: 1rem;
+        }
+
         /* Mobile-specific adjustments */
         @media (max-width: 768px) {
+            .master-controls {
+                display: flex;
+                flex-direction: column;
+                align-items: center; /* Center children */
+                width: 100%;
+            }
+
+            #defaultFormat {
+                width: 100%;
+                max-width: 300px; /* Limit max width */
+                margin: 0 auto 1rem auto; /* Center horizontally with margin */
+            }
+
+            .master-quality-container {
+                width: 100%;
+                max-width: 300px; /* Match default format width */
+            }
+
+            .upload-box {
+                min-height: 140px; /* Even smaller on mobile */
+            }
+        }
+
+        /* Additional mobile optimization */
+        @media (max-width: 480px) {
+            .upload-box {
+                min-height: 120px; /* Smallest size for very small screens */
+                padding: 1rem; /* Reduced padding */
+            }
+
+            .upload-box p {
+                font-size: 1rem; /* Slightly smaller text */
+                text-align: center;
+            }
+        }
+
+        /* Format select styling */
+        .format-select {
+            width: auto;
+            min-width: 140px;
+            height: 36px;
+            padding: 0.5rem 2rem 0.5rem 1rem;
+            margin: 0;
+            align-self: center;
+        }
+
+        /* Action buttons container */
+        .action-buttons-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-left: auto;
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
             .format-select {
-                min-width: 140px; /* Increased width for mobile */
-                width: auto;
+                min-width: 180px; /* Increased width to prevent text cutoff */
+                height: 36px;
+            }
+
+            .action-buttons-container {
+                display: flex;
+                align-items: center; /* Keep buttons vertically aligned */
+                justify-content: flex-end;
+                gap: 0.75rem;
+                flex-wrap: nowrap; /* Prevent wrapping */
+            }
+
+            /* Ensure all buttons are the same height and aligned */
+            .move-buttons button,
+            .delete-btn,
+            .format-select {
+                height: 36px;
+                min-height: 36px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0;
+                padding: 0;
+                line-height: 1;
+            }
+
+            .move-buttons {
+                display: flex;
+                flex-direction: row !important;
+                gap: 0.5rem;
+                align-items: center;
+                margin: 0;
+            }
+        }
+
+        /* Even smaller screens */
+        @media (max-width: 480px) {
+            .format-select {
+                min-width: 190px; /* Slightly wider on smaller screens */
             }
         }
     </style>
@@ -1965,12 +2178,11 @@
             }
 
             .loading-spinner {
-                width: 50px;
-                height: 50px;
-                border: 5px solid #f3f3f3;
-                border-top: 5px solid #3498db;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
+                width: 60px;
+                height: 60px;
+                border: 4px solid rgba(255, 255, 255, 0.1);
+                border-top: 4px solid var(--accent);
+                box-shadow: 0 0 32px rgba(52, 152, 219, 0.2);
             }
 
             @keyframes spin {
